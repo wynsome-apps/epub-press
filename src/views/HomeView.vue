@@ -10,6 +10,7 @@ const selectedFile = ref(null)
 const errorMessage = ref('')
 const bookContent = ref(null)
 const selectedContent = ref(null)
+const activeView = ref('display')
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
@@ -118,63 +119,114 @@ const handleTocClick = async (href) => {
           </li>
         </ul>
       </div>
-      <div class="content-panel" v-if="selectedContent" v-html="selectedContent"></div>
+      <div class="view-tabs" v-if="selectedContent">
+        <button :class="{ active: activeView === 'display' }" @click="activeView = 'display'">
+          Display
+        </button>
+        <button :class="{ active: activeView === 'source' }" @click="activeView = 'source'">
+          Source
+        </button>
+      </div>
+      <div class="content-panel" v-if="selectedContent">
+        <pre v-if="activeView === 'source'"><code contenteditable>{{ selectedContent }}</code></pre>
+        <div v-else v-html="selectedContent"></div>
+      </div>
     </div>
   </main>
 </template>
 
 <style>
+main {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
 .file-upload {
   margin: 20px;
   padding: 20px;
   border: 2px dashed #ccc;
   border-radius: 4px;
-}
 
-.file-input {
-  margin-bottom: 10px;
-}
+  .file-input {
+    margin-bottom: 10px;
+  }
 
-.error-message {
-  color: red;
-  margin-top: 5px;
+  .error-message {
+    color: red;
+    margin-top: 5px;
+  }
 }
 
 .book-content {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+
   padding: 20px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
   gap: 20px;
-}
 
-.toc-panel {
-  flex: 0 0 300px;
-}
+  .toc-panel {
+    flex: 0 0 300px;
+    grid-area: 1 / 1 / 3 / 2;
+    overflow-y: auto;
+  }
 
-.content-panel {
-  flex: 1;
-  padding: 20px;
-  border-left: 1px solid #ccc;
-  max-height: 80vh;
-  overflow-y: auto;
-}
+  .toc-list {
+    list-style-type: none;
+    padding-left: 0;
 
-.toc-list {
-  list-style-type: none;
-  padding-left: 0;
-}
+    li {
+      margin: 10px 0;
+    }
 
-.subitems {
-  list-style-type: none;
-  padding-left: 20px;
-}
+    a {
+      text-decoration: none;
+      color: #5b7fa4;
+    }
 
-.toc-list a {
-  text-decoration: none;
-  color: #2c3e50;
-}
+    .subitems {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+  }
 
-.toc-list li {
-  margin: 10px 0;
+  .view-tabs {
+    margin-bottom: 10px;
+    grid-area: 1 / 2 / 2 / 3;
+
+    button {
+      padding: 8px 16px;
+      margin-right: 8px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &.active {
+        background: #2c3e50;
+        color: white;
+        border: 1px solid #2c3e50;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+
+  .content-panel {
+    grid-area: 2 / 2 / 3 / 3;
+    flex: 1;
+    padding: 20px;
+    border-left: 1px solid #ccc;
+    max-height: 80vh;
+    overflow-y: auto;
+
+    pre {
+      padding: 10px;
+    }
+  }
 }
 
 @keyframes flash {

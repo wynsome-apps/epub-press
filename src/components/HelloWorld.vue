@@ -9,7 +9,7 @@ defineProps({
 
 <template>
   <div class="greetings">
-    <h1 class="green">{{ msg }}</h1>
+    <h1>{{ msg }}</h1>
     <h3>
       You're printing press for ePubs
     </h3>
@@ -17,26 +17,26 @@ defineProps({
 </template>
 
 <style scoped>
+.greetings {
+  display: flex;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 1rem;
+}
 h1 {
-  font-weight: 500;
-  font-size: 2.6rem;
+  font-weight: bold;
+  font-size: 1rem;
   position: relative;
-  top: -10px;
 }
 
 h3 {
-  font-size: 1.2rem;
+  font-size: 0.75rem;
+  font-weight: normal;
 }
 
 .greetings h1,
 .greetings h3 {
-  text-align: center;
-}
-
-@media (min-width: 1024px) {
-  .greetings h1,
-  .greetings h3 {
-    text-align: left;
-  }
+  text-align: left;
+  flex-grow: 1;
 }
 </style>

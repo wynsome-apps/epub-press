@@ -9,6 +9,7 @@
   --vt-c-black-mute: #282828;
 
   --vt-c-indigo: #2c3e50;
+  --vt-c-green: hsla(160, 100%, 37%, 1);;
 
   --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
   --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
@@ -54,7 +55,7 @@
 *::before,
 *::after {
   /*box-sizing: border-box;*/
-  margin: 0;
+  /*margin: 0;*/
   /*font-weight: normal;*/
 }
 
@@ -83,4 +84,5 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
 }

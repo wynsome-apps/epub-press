@@ -24,6 +24,16 @@ import HelloWorld from './components/HelloWorld.vue'
 header {
   line-height: 1.5;
   max-height: 100vh;
+
+  .wrapper {
+    background-color: var(--vt-c-green);
+    color: var(--vt-c-white);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1rem;
+  }
 }
 
 .logo {
@@ -32,14 +42,18 @@ header {
 }
 
 nav {
-  width: 100%;
+  //width: 100%;
   font-size: 12px;
   text-align: center;
   margin-top: 2rem;
+
+  a {
+    color: var(--color-text);
+  }
 }
 
 nav a.router-link-exact-active {
-  color: var(--color-text);
+  color: var(--vt-c-white);
 }
 
 nav a.router-link-exact-active:hover {
@@ -57,24 +71,20 @@ nav a:first-of-type {
 }
 
 @media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
 
   .logo {
     margin: 0 2rem 0 0;
   }
 
   header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
+    //display: flex;
+    //place-items: flex-start;
+    //flex-direction: column;
+    //align-items: center;
   }
 
   nav {
-    text-align: left;
+    text-align: center;
     margin-left: -1rem;
     font-size: 1rem;
 
