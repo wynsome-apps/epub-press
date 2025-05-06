@@ -3,15 +3,16 @@ import TheWelcome from '../components/TheWelcome.vue'
 import { ref, nextTick } from 'vue'
 import { Book } from 'epubjs'
 
-const activeTab = ref('metadata')
-const bookFiles = ref([])
-
 const showUpload = ref(true)
+const activeTab = ref('metadata')
+
 const tableOfContents = ref([])
+const bookContent = ref(null)
+const filesMeta = ref(new Map())
+const filesContent = ref(new Map())
 
 const selectedFile = ref(null)
 const errorMessage = ref('')
-const bookContent = ref(null)
 const selectedContent = ref(null)
 const activeView = ref('display')
 
@@ -22,9 +23,7 @@ const handleFileUpload = (event) => {
     errorMessage.value = ''
     parseEpub(file)
 
-    console.log(file);
-
-    if (navigator?.serviceWorker?.controller) {
+    /*if (navigator?.serviceWorker?.controller) {
       navigator.serviceWorker.controller.postMessage({
         type: 'PROCESS_EPUB',
         fileName: file.name,
@@ -40,7 +39,7 @@ const handleFileUpload = (event) => {
       })
     } else {
       console.warn('Service worker not found');
-    }
+    }*/
   } else {
     selectedFile.value = null
     errorMessage.value = 'Please select a valid .epub file'
@@ -53,7 +52,7 @@ const parseEpub = (file) => {
     const book = new Book(e.target.result)
 
     book.loaded.metadata
-      .then((metadata) => {
+      .then(async (metadata) => {
         bookContent.value = {
           title: metadata.title,
           creator: metadata.creator,
@@ -66,29 +65,30 @@ const parseEpub = (file) => {
           tableOfContents.value = toc.toc
           showUpload.value = false
         })
-        Object.keys(book.archive.zip.files).forEach((key) => {
-          const type = key.split('.').pop() || 'unknown'
-          let value = book.archive.zip.files[key]
-          if (key.trim()) {
-            bookFiles.value.push({
-              path: key,
+        for (const zipFileName in book.archive.zip.files) {
+          try {
+            const file = book.archive.zip.files[zipFileName]
+            const type = zipFileName.split('.').pop() || 'unknown'
+            filesMeta.value.set(zipFileName, {
+              name: file.name,
               type: type,
-              size: value._data?.length || 0,
-              value: value,
-              isText: /^(html|xml|txt|css)$/i.test(type),
-            })
+              dir: file.dir,
+              date: file.date,
+              options: file.options,
+            });
+
+            let contentType = 'text';
+            switch (type) {
+              case 'png':
+                contentType = 'uint8array';
+                break;
+            }
+            const fileContent = await book.archive.zip.files[zipFileName].async(contentType)
+            filesContent.value.set(zipFileName, fileContent)
+          } catch (err) {
+            console.error(err)
           }
-        })
-        // book.loaded.spine.then(async (data) => {
-        //   // const content = await data.spineItems[0].render();
-        //   console.log(data)
-        // })
-        // book.archive.getText('/index_split_001.html').then((text) => {
-        //   console.log(text)
-        // })
-        // book.archive.request('/index_split_001.html').then((data) => {
-        //   console.log(data)
-        // })
+        }
       })
       .catch((err) => {
         errorMessage.value = 'Error parsing epub file: ' + err.message
@@ -155,23 +155,23 @@ const handleTocClick = async (href) => {
         </div>
 
         <div v-if="activeTab === 'files'" class="files-panel">
-          <details v-for="file in bookFiles" :key="file.path" class="file-item">
+          <details v-for="[name, file] of filesMeta" :key="file.name" class="file-item">
             <summary>
-              {{ file.path }}
+              {{ file.name }}
             </summary>
 <!--            <div class="file-value-data" v-if="file.value._data">-->
 <!--              <p>Raw data (first 100 bytes):</p>-->
 <!--              <pre>{{ file.value._data.slice(0, 100) }}</pre>-->
 <!--            </div>-->
             <div class="file-metadata">
-              <p>Path: {{ file.path }}</p>
+              <p>Name: {{ file.name }}</p>
               <p>Type: {{ file.type }}</p>
-              <p>Size: {{ file.size }} bytes</p>
-              <p>URL: {{ file.href }}</p>
+              <p>Dir: {{ file.dir }}</p>
+              <p>Date: {{ file.date }}</p>
               <div class="file-properties">
                 <p>Properties:</p>
                 <ul>
-                  <li v-for="(value, key) in Object.entries(file.value)" :key="key">
+                  <li v-for="(value, key) in Object.entries(file.options)" v-if="file.options" :key="key">
                     {{ key }}: {{ value }}
                   </li>
                 </ul>
