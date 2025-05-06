@@ -3,6 +3,9 @@ import TheWelcome from '../components/TheWelcome.vue'
 import { ref, nextTick } from 'vue'
 import { Book } from 'epubjs'
 
+const activeTab = ref('metadata')
+const bookFiles = ref([])
+
 const showUpload = ref(true)
 const tableOfContents = ref([])
 
@@ -37,10 +40,24 @@ const parseEpub = (file) => {
           language: metadata.language,
           spine: book.spine,
           book: book,
+          metadata: metadata,
         }
         book.loaded.navigation.then((toc) => {
           tableOfContents.value = toc.toc
           showUpload.value = false
+        })
+        Object.keys(book.archive.zip.files).forEach((key) => {
+          const type = key.split('.').pop() || 'unknown'
+          let value = book.archive.zip.files[key]
+          if (key.trim()) {
+            bookFiles.value.push({
+              path: key,
+              type: type,
+              size: value._data?.length || 0,
+              value: value,
+              isText: /^(html|xml|txt|css)$/i.test(type),
+            })
+          }
         })
         // book.loaded.spine.then(async (data) => {
         //   // const content = await data.spineItems[0].render();
@@ -98,26 +115,77 @@ const handleTocClick = async (href) => {
       </div>
     </div>
     <div v-else class="book-content">
-      <div class="toc-panel">
-        <h1>{{ bookContent.title }}</h1>
-        <h2>Table of Contents</h2>
-        <ul class="toc-list">
-          <li v-for="(item, index) in tableOfContents" :key="index">
-            <a @click.prevent="handleTocClick(item.href)" href="#" :data-href="item.href">{{
-              item.label
-            }}</a>
-            <ul v-if="item.subitems?.length" class="subitems">
-              <li v-for="(subitem, subIndex) in item.subitems" :key="subIndex">
-                <a
-                  @click.prevent="handleTocClick(subitem.href)"
-                  href="#"
-                  :data-href="subitem.href"
-                  >{{ subitem.label }}</a
-                >
-              </li>
-            </ul>
-          </li>
-        </ul>
+      <div class="tabs">
+        <button
+          v-for="tab in ['metadata', 'files', 'toc']"
+          :key="tab"
+          :class="{ active: activeTab === tab }"
+          @click="activeTab = tab"
+        >
+          {{ tab === 'toc' ? 'ToC' : tab.charAt(0).toUpperCase() + tab.slice(1) }}
+        </button>
+      </div>
+
+      <div class="tab-content">
+        <div v-if="activeTab === 'metadata'" class="metadata-panel">
+          <div v-for="(value, key) in bookContent.metadata" :key="key" class="metadata-item">
+            <label>{{ key }}:</label>
+            <input type="text" :value="value" readonly />
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'files'" class="files-panel">
+          <details v-for="file in bookFiles" :key="file.path" class="file-item">
+            <summary>
+              {{ file.path }}
+            </summary>
+<!--            <div class="file-value-data" v-if="file.value._data">-->
+<!--              <p>Raw data (first 100 bytes):</p>-->
+<!--              <pre>{{ file.value._data.slice(0, 100) }}</pre>-->
+<!--            </div>-->
+            <div class="file-metadata">
+              <p>Path: {{ file.path }}</p>
+              <p>Type: {{ file.type }}</p>
+              <p>Size: {{ file.size }} bytes</p>
+              <p>URL: {{ file.href }}</p>
+              <div class="file-properties">
+                <p>Properties:</p>
+                <ul>
+                  <li v-for="(value, key) in Object.entries(file.value)" :key="key">
+                    {{ key }}: {{ value }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div v-if="activeTab === 'toc'" class="toc-panel">
+          <ul class="toc-list">
+            <li v-for="(item, index) in tableOfContents" :key="index">
+              <div class="toc-item">
+                <a @click.prevent="handleTocClick(item.href)" href="#" :data-href="item.href">
+                  {{ item.label }}
+                </a>
+                <span class="href-subtitle">{{ item.href }}</span>
+              </div>
+              <ul v-if="item.subitems?.length" class="subitems">
+                <li v-for="(subitem, subIndex) in item.subitems" :key="subIndex">
+                  <div class="toc-item">
+                    <a
+                      @click.prevent="handleTocClick(subitem.href)"
+                      href="#"
+                      :data-href="subitem.href"
+                    >
+                      {{ subitem.label }}
+                    </a>
+                    <span class="href-subtitle">{{ subitem.href }}</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
       <div class="view-tabs" v-if="selectedContent">
         <button :class="{ active: activeView === 'display' }" @click="activeView = 'display'">
@@ -162,12 +230,78 @@ main {
   width: 100%;
   overflow: hidden;
   box-sizing: border-box;
-
   padding: 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr;
-  gap: 20px;
+
+  .tabs {
+    margin-bottom: 20px;
+
+    button {
+      padding: 8px 16px;
+      margin-right: 8px;
+      border: 1px solid #ccc;
+      background: white;
+      cursor: pointer;
+
+      &.active {
+        background: var(--vt-c-green);
+        color: white;
+        border-color: var(--vt-c-green);
+      }
+    }
+  }
+
+  .tab-content {
+    border: 1px solid #ccc;
+    padding: 20px;
+    height: calc(100% - 80px);
+    overflow-y: auto;
+  }
+
+  .metadata-item {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    label {
+      min-width: 100px;
+      font-weight: bold;
+    }
+
+    input {
+      flex: 1;
+      padding: 5px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+    }
+  }
+
+  .file-item {
+    margin-bottom: 10px;
+
+    summary {
+      cursor: pointer;
+      padding: 10px;
+      background: var(--vt-c-indigo);
+    }
+
+    .file-metadata {
+      padding: 10px;
+      margin-left: 20px;
+    }
+  }
+
+  .toc-item {
+    display: flex;
+    flex-direction: column;
+    margin: 5px 0;
+
+    .href-subtitle {
+      font-size: 0.8em;
+      color: #666;
+      margin-left: 10px;
+    }
+  }
 
   .toc-panel {
     flex: 0 0 300px;
