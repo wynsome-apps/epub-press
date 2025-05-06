@@ -9,6 +9,8 @@
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100vh;
+  color: var(--vt-c-text-dark-1);
+  accent-color: var(--vt-c-green);
 }
 
 a,

@@ -1,5 +1,6 @@
 <script setup>
 import TheWelcome from '../components/TheWelcome.vue'
+import FileEdit from '@/components/FileEdit.vue'
 import { ref, nextTick } from 'vue'
 import { Book } from 'epubjs'
 
@@ -75,6 +76,7 @@ const parseEpub = (file) => {
               dir: file.dir,
               date: file.date,
               options: file.options,
+              isText: /^(html|xhtml|xml|txt|css|ncx|opf)$/i.test(type),
             });
 
             let contentType = 'text';
@@ -135,7 +137,8 @@ const handleTocClick = async (href) => {
       </div>
     </div>
     <div v-else class="book-content">
-      <div class="tabs">
+      <FileEdit :files-content="filesContent" :files-meta="filesMeta" />
+<!--      <div class="tabs">
         <button
           v-for="tab in ['metadata', 'files', 'toc']"
           :key="tab"
@@ -144,9 +147,9 @@ const handleTocClick = async (href) => {
         >
           {{ tab === 'toc' ? 'ToC' : tab.charAt(0).toUpperCase() + tab.slice(1) }}
         </button>
-      </div>
+      </div>-->
 
-      <div class="tab-content">
+<!--      <div class="tab-content">
         <div v-if="activeTab === 'metadata'" class="metadata-panel">
           <div v-for="(value, key) in bookContent.metadata" :key="key" class="metadata-item">
             <label>{{ key }}:</label>
@@ -159,10 +162,6 @@ const handleTocClick = async (href) => {
             <summary>
               {{ file.name }}
             </summary>
-<!--            <div class="file-value-data" v-if="file.value._data">-->
-<!--              <p>Raw data (first 100 bytes):</p>-->
-<!--              <pre>{{ file.value._data.slice(0, 100) }}</pre>-->
-<!--            </div>-->
             <div class="file-metadata">
               <p>Name: {{ file.name }}</p>
               <p>Type: {{ file.type }}</p>
@@ -180,7 +179,7 @@ const handleTocClick = async (href) => {
           </details>
         </div>
 
-        <div v-if="activeTab === 'toc'" class="toc-panel">
+        <div v-if="activeTab === 'toc'" class="toc-panel" style="display:none">
           <ul class="toc-list">
             <li v-for="(item, index) in tableOfContents" :key="index">
               <div class="toc-item">
@@ -206,8 +205,8 @@ const handleTocClick = async (href) => {
             </li>
           </ul>
         </div>
-      </div>
-      <div class="view-tabs" v-if="selectedContent">
+      </div>-->
+<!--      <div class="view-tabs" v-if="selectedContent" style="display:none">
         <button :class="{ active: activeView === 'display' }" @click="activeView = 'display'">
           Display
         </button>
@@ -215,10 +214,10 @@ const handleTocClick = async (href) => {
           Source
         </button>
       </div>
-      <div class="content-panel" v-if="selectedContent">
+      <div class="content-panel" v-if="selectedContent" style="display:none">
         <pre v-if="activeView === 'source'"><code contenteditable>{{ selectedContent }}</code></pre>
         <div v-else v-html="selectedContent"></div>
-      </div>
+      </div>-->
     </div>
   </main>
 </template>
