@@ -5,6 +5,18 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/epub/:pathMatch(.*)*',
+      // path: '/epub/:file',
+      name: 'epub',
+      component: HomeView,
+      // component: UserDetails,
+      beforeEnter: (to, from) => {
+        // reject the navigation
+        console.log('skipping from route');
+        return false
+      },
+    },
+    {
       path: '/',
       name: 'home',
       component: HomeView,

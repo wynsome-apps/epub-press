@@ -21,6 +21,26 @@ const handleFileUpload = (event) => {
     selectedFile.value = file
     errorMessage.value = ''
     parseEpub(file)
+
+    console.log(file);
+
+    if (navigator?.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'PROCESS_EPUB',
+        fileName: file.name,
+        file: file,
+      });
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log(event);
+        if (event.data.type === 'EPUB_PROCESSING_STATUS') {
+          console.log(event.data);
+          console.log(`EPUB processing ${event.data.status} for ${event.data.fileName}`);
+        }
+      })
+    } else {
+      console.warn('Service worker not found');
+    }
   } else {
     selectedFile.value = null
     errorMessage.value = 'Please select a valid .epub file'
