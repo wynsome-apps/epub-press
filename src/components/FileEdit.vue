@@ -14,6 +14,10 @@
           {{ key }}
         </li>
       </ul>
+      <button class="export-btn" @click="handleExport">
+        <svg-icon type="mdi" :path="mdiExport"></svg-icon>
+        Export
+      </button>
     </div>
     <div class="main-content">
       <div v-if="selectedFile" class="file-container">
@@ -34,7 +38,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import SvgIcon from '@jamescoyle/vue-icon'
-import { mdiBookOpen, mdiBookOpenOutline, mdiMenuClose, mdiMenuOpen } from '@mdi/js'
+import { mdiBookOpen, mdiBookOpenOutline, mdiMenuClose, mdiMenuOpen, mdiExport } from '@mdi/js'
 
 const props = defineProps({
   filesMeta: {
@@ -83,6 +87,25 @@ const handleSave = () => {
   isModified.value = false
   sidebarOpen.value = true
   emit('save', { file: selectedFile.value, content: fileContent.value })
+}
+
+const handleExport = async () => {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+
+  for (const [fileName, content] of props.filesContent.entries()) {
+    zip.file(fileName, content)
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'export.epub'
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
 }
 </script>
 
@@ -201,5 +224,26 @@ const handleSave = () => {
   padding: 1rem;
   resize: both;
   flex-grow: 1;
+}
+
+.export-btn {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: var(--vt-c-green);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidebar.collapsed .export-btn {
+  opacity: 0;
+  pointer-events: none;
 }
 </style>
