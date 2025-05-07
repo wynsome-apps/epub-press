@@ -1,9 +1,6 @@
 <template>
   <div class="file-edit">
     <div :class="['sidebar', { collapsed: !sidebarOpen }]">
-      <button class="toggle-btn" @click="toggleSidebar">
-        <svg-icon type="mdi" :path="sidebarButton"></svg-icon>
-      </button>
       <ul class="file-list">
         <li
           v-for="[key, meta] in sortedFiles"
@@ -14,12 +11,17 @@
           {{ key }}
         </li>
       </ul>
-      <button class="export-btn" @click="handleExport">
-        <svg-icon type="mdi" :path="mdiExport"></svg-icon>
-        Export
-      </button>
     </div>
     <div class="main-content">
+      <div class="book-header">
+        <button class="toggle-btn" @click="toggleSidebar">
+          <svg-icon type="mdi" :path="sidebarButton"></svg-icon>
+        </button>
+        <h2>{{ bookContent.title }}</h2>
+        <button class="export-btn" @click="handleExport">
+          <svg-icon type="mdi" :path="mdiExport"></svg-icon><span class="label">Export</span>
+        </button>
+      </div>
       <div v-if="selectedFile" class="file-container">
         <div class="title-row">
           <h3 class="file-title">{{ selectedFile }}</h3>
@@ -38,7 +40,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import SvgIcon from '@jamescoyle/vue-icon'
-import { mdiBookOpen, mdiBookOpenOutline, mdiMenuClose, mdiMenuOpen, mdiExport } from '@mdi/js'
+import { mdiMenuClose, mdiMenuOpen, mdiExport } from '@mdi/js'
 
 const props = defineProps({
   filesMeta: {
@@ -47,6 +49,10 @@ const props = defineProps({
   },
   filesContent: {
     type: Map,
+    required: true,
+  },
+  bookContent: {
+    type: Object,
     required: true,
   },
 })
@@ -74,6 +80,7 @@ const emit = defineEmits(['update:content', 'save'])
 const selectFile = (fileName) => {
   selectedFile.value = fileName
   fileContent.value = props.filesContent.get(fileName)
+  isModified.value = false
   sidebarOpen.value = false
 }
 
@@ -111,6 +118,7 @@ const handleExport = async () => {
 
 <style scoped>
 .file-edit {
+  --animation-duration: 0.5s;
   display: flex;
   height: 100%;
 }
@@ -118,24 +126,47 @@ const handleExport = async () => {
 .sidebar {
   position: relative;
   width: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   background: var(--color-background-soft);
-  transition: width 0.3s ease;
+  transition: width var(--animation-duration) ease;
   border-right: 1px solid var(--color-border);
 }
 
 .sidebar.collapsed {
-  width: 40px;
+  width: 0px;
 
   .file-list {
     opacity: 0.25;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--animation-duration) ease;
+  }
+
+  & + .main-content {
+    padding-inline: 0;
+
+    .book-header {
+      .toggle-btn, h2 {
+        left: 0;
+      }
+    }
+
+    .save-button {
+      visibility: visible;
+    }
+  }
+
+  .export-btn {
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
 .toggle-btn {
-  position: absolute;
-  right: -12px;
-  top: 20px;
+  position: relative;
+  //right: -20px;
+  //top: 0px;
+  left: -2rem;
   z-index: 1;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
@@ -143,42 +174,61 @@ const handleExport = async () => {
   background: var(--color-background);
   cursor: pointer;
   color: var(--vt-c-text-dark-2);
+  margin-inline: 1rem;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: left var(--animation-duration) ease;
 }
 
 .file-list {
   list-style-type: none;
   padding: 0;
   margin: 0;
-  overflow: hidden;
-}
+  overflow: auto;
+  scrollbar-width: thin;
 
-.file-list li {
-  padding: 8px;
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  white-space: nowrap;
-}
+  li {
+    padding: 8px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    white-space: nowrap;
 
-.file-list li.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.file-list li.active {
-  background: var(--color-background-mute);
-  color: var(--vt-c-green);
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    &.active {
+      background: var(--color-background-mute);
+      color: var(--vt-c-green);
+    }
+  }
 }
 
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+
+  transition: padding-inline var(--animation-duration) ease;
 }
 
+.book-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 1rem;
+
+  background: var(--color-background-soft);
+  border-right: 1px solid var(--color-border);
+
+  h2 {
+    position: relative;
+    flex: 1;
+    left: -2rem;
+    transition: left var(--animation-duration) ease;
+  }
+}
 .file-container {
   flex-grow: 1;
   display: flex;
@@ -190,6 +240,8 @@ const handleExport = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  margin-inline: 1rem;
+  transition: margin-inline-start var(--animation-duration) ease;
 }
 
 .file-title {
@@ -204,6 +256,12 @@ const handleExport = async () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  transition: opacity var(--animation-duration) ease visibility var(--animation-duration) ease;
+}
+@media (max-width: 600px) {
+  .save-button {
+    visibility: hidden;
+  }
 }
 
 .save-button:disabled {
@@ -217,6 +275,7 @@ const handleExport = async () => {
   color: var(--vt-c-text-dark-2);
   line-height: 1.4;
   width: 100%;
+  box-sizing: border-box;
   min-height: 400px;
   background: var(--color-background-soft);
   border: 1px solid var(--color-border);
@@ -227,10 +286,7 @@ const handleExport = async () => {
 }
 
 .export-btn {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin: 1rem;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -240,10 +296,5 @@ const handleExport = async () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-}
-
-.sidebar.collapsed .export-btn {
-  opacity: 0;
-  pointer-events: none;
 }
 </style>

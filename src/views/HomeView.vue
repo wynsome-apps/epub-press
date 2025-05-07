@@ -137,7 +137,7 @@ const handleTocClick = async (href) => {
       </div>
     </div>
     <div v-else class="book-content">
-      <FileEdit :files-content="filesContent" :files-meta="filesMeta" />
+      <FileEdit :book-content="bookContent" :files-content="filesContent" :files-meta="filesMeta" />
 <!--      <div class="tabs">
         <button
           v-for="tab in ['metadata', 'files', 'toc']"
@@ -249,7 +249,6 @@ main {
   width: 100%;
   overflow: hidden;
   box-sizing: border-box;
-  padding: 20px;
 
   .tabs {
     margin-bottom: 20px;
