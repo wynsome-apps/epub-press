@@ -1,12 +1,12 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
+import Icon from './components/Icon.vue'
 </script>
 
 <template>
   <header>
-<!--    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />-->
-
+    <icon name="logo" class="logo" />
     <div class="wrapper">
       <HelloWorld msg="ePub Press" />
 
@@ -24,10 +24,12 @@ import HelloWorld from './components/HelloWorld.vue'
 header {
   line-height: 1.5;
   max-height: 100vh;
+  background-color: var(--vt-c-green);
+  color: var(--vt-c-white);
+  display: flex;
 
   .wrapper {
-    background-color: var(--vt-c-green);
-    color: var(--vt-c-white);
+    flex: 1;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -37,8 +39,12 @@ header {
 }
 
 .logo {
-  display: block;
-  margin: 0 auto 2rem;
+  font-size: 1.5rem;
+  fill: currentColor;
+  height: 1.5rem;
+  margin-inline-start: 1rem;
+  margin-block: 0.5rem;
+  align-self: center;
 }
 
 nav {
