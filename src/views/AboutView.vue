@@ -38,11 +38,4 @@ import Icon from '../components/Icon.vue'
   display: block;
   margin: 1rem 0;
 }
-@media (min-width: 1024px) {
-  .about {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-  }
-}
 </style>

@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "predeploy": "vite build",
+    "deploy": "npx firebase deploy --only hosting:epub-press"
   },
   "dependencies": {
     "epubjs": "^0.3.93",
@@ -23,6 +25,7 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "eslint": "^9.22.0",
     "eslint-plugin-vue": "~10.0.0",
+    "firebase-tools": "^14.2.2",
     "globals": "^16.0.0",
     "prettier": "3.5.3",
     "vite": "^6.2.4",

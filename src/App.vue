@@ -77,24 +77,10 @@ nav a:first-of-type {
 
 @media (min-width: 1024px) {
 
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    //display: flex;
-    //place-items: flex-start;
-    //flex-direction: column;
-    //align-items: center;
-  }
-
   nav {
-    text-align: center;
-    margin-left: -1rem;
     font-size: 1rem;
 
     padding: 1rem 0;
-    margin-top: 1rem;
   }
 }
 </style>
