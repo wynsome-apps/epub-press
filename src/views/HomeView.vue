@@ -1,11 +1,12 @@
 <script setup>
-import TheWelcome from '../components/TheWelcome.vue'
 import FileEdit from '@/components/FileEdit.vue'
-import { ref, nextTick } from 'vue'
+import {
+  ref,
+  // nextTick,
+} from 'vue'
 import { Book } from 'epubjs'
 
 const showUpload = ref(true)
-const activeTab = ref('metadata')
 
 const tableOfContents = ref([])
 const bookContent = ref(null)
@@ -14,8 +15,7 @@ const filesContent = ref(new Map())
 
 const selectedFile = ref(null)
 const errorMessage = ref('')
-const selectedContent = ref(null)
-const activeView = ref('display')
+// const selectedContent = ref(null)
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
@@ -102,7 +102,7 @@ const parseEpub = (file) => {
   reader.readAsArrayBuffer(file)
 }
 
-const handleTocClick = async (href) => {
+/*const handleTocClick = async (href) => {
   try {
     const section = await bookContent.value.book.spine.get(href)
     let hrefParts = href.split('#')
@@ -124,7 +124,7 @@ const handleTocClick = async (href) => {
   } catch (err) {
     errorMessage.value = 'Error loading content: ' + err.message
   }
-}
+}*/
 </script>
 
 <template>

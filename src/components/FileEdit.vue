@@ -65,7 +65,7 @@ const selectedFile = ref(null)
 
 const sortedFiles = computed(() => {
   return [...props.filesMeta]
-    .filter(([_, meta]) => !meta.dir)
+    .filter(([, meta]) => !meta.dir)
     .sort((a, b) => a[0].localeCompare(b[0]))
 })
 

@@ -1,7 +1,7 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
-import Icon from './components/Icon.vue'
+import Icon from './components/EpubIcon.vue'
 </script>
 
 <template>

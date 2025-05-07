@@ -10,7 +10,7 @@ const router = createRouter({
       name: 'epub',
       component: HomeView,
       // component: UserDetails,
-      beforeEnter: (to, from) => {
+      beforeEnter: () => {
         // reject the navigation
         console.log('skipping from route');
         return false
