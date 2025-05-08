@@ -2,20 +2,34 @@
 import FileEdit from '@/components/FileEdit.vue'
 import {
   ref,
+  onMounted,
   // nextTick,
 } from 'vue'
+import { mdiDelete } from '@mdi/js'
 import { Book } from 'epubjs'
+import { db } from '@/db'
 
 const showUpload = ref(true)
-
 const tableOfContents = ref([])
 const bookContent = ref(null)
 const filesMeta = ref(new Map())
 const filesContent = ref(new Map())
-
 const selectedFile = ref(null)
 const errorMessage = ref('')
+const activeTab = ref('metadata')
+const activeView = ref('display')
+const storedBooks = ref([])
 // const selectedContent = ref(null)
+
+onMounted(async () => {
+  try {
+    await db.init()
+    storedBooks.value = await db.getBooks()
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+    errorMessage.value = 'Failed to initialize database: ' + error.message
+  }
+})
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
@@ -47,54 +61,105 @@ const handleFileUpload = (event) => {
   }
 }
 
+const processFiles = async (book, bookId) => {
+  for (const zipFileName in book.archive.zip.files) {
+    try {
+      const file = book.archive.zip.files[zipFileName]
+      const type = zipFileName.split('.').pop() || 'unknown'
+      const metadata = {
+        name: file.name,
+        type: type,
+        dir: file.dir,
+        date: file.date,
+        options: file.options,
+        isText: /^(html|xhtml|xml|txt|css|ncx|opf)$/i.test(type),
+      }
+      filesMeta.value.set(zipFileName, metadata)
+
+      let contentType = 'text'
+      switch (type) {
+        case 'png':
+          contentType = 'uint8array'
+          break
+      }
+      const fileContent = await book.archive.zip.files[zipFileName].async(contentType)
+      filesContent.value.set(zipFileName, fileContent)
+
+      await db.addFile({
+        bookId: bookId,
+        name: zipFileName,
+        meta: metadata,
+        content: fileContent,
+      })
+    } catch (err) {
+      console.error(`Error processing file ${zipFileName}:`, err)
+    }
+  }
+}
+
+const loadStoredBook = async (book) => {
+  try {
+    const files = await db.getBookFiles(book.id)
+    bookContent.value = {
+      title: book.meta.title,
+      creator: book.meta.creator,
+      language: book.meta.language,
+      metadata: book.meta,
+    }
+
+    filesMeta.value = new Map()
+    filesContent.value = new Map()
+
+    files.forEach((file) => {
+      filesMeta.value.set(file.name, file.meta)
+      filesContent.value.set(file.name, file.content)
+    })
+
+    showUpload.value = false
+  } catch (error) {
+    errorMessage.value = 'Error loading stored book: ' + error.message
+  }
+}
+
+const deleteBook = async (book, event) => {
+  event.stopPropagation()
+  try {
+    await db.deleteBook(book.id)
+    storedBooks.value = storedBooks.value.filter((b) => b.id !== book.id)
+  } catch (error) {
+    errorMessage.value = 'Error deleting book: ' + error.message
+  }
+}
+
 const parseEpub = (file) => {
   const reader = new FileReader()
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     const book = new Book(e.target.result)
 
-    book.loaded.metadata
-      .then(async (metadata) => {
-        bookContent.value = {
-          title: metadata.title,
-          creator: metadata.creator,
-          language: metadata.language,
-          spine: book.spine,
-          book: book,
-          metadata: metadata,
-        }
-        book.loaded.navigation.then((toc) => {
-          tableOfContents.value = toc.toc
-          showUpload.value = false
-        })
-        for (const zipFileName in book.archive.zip.files) {
-          try {
-            const file = book.archive.zip.files[zipFileName]
-            const type = zipFileName.split('.').pop() || 'unknown'
-            filesMeta.value.set(zipFileName, {
-              name: file.name,
-              type: type,
-              dir: file.dir,
-              date: file.date,
-              options: file.options,
-              isText: /^(html|xhtml|xml|txt|css|ncx|opf)$/i.test(type),
-            });
+    try {
+      const metadata = await book.loaded.metadata
+      bookContent.value = {
+        title: metadata.title,
+        creator: metadata.creator,
+        language: metadata.language,
+        spine: book.spine,
+        book: book,
+        metadata: metadata,
+      }
 
-            let contentType = 'text';
-            switch (type) {
-              case 'png':
-                contentType = 'uint8array';
-                break;
-            }
-            const fileContent = await book.archive.zip.files[zipFileName].async(contentType)
-            filesContent.value.set(zipFileName, fileContent)
-          } catch (err) {
-            console.error(err)
-          }
-        }
+      const bookId = await db.addBook({
+        name: selectedFile.value.name,
+        meta: metadata,
       })
-      .catch((err) => {
-        errorMessage.value = 'Error parsing epub file: ' + err.message
-      })
+
+      const navigation = await book.loaded.navigation
+      tableOfContents.value = navigation.toc
+      showUpload.value = false
+
+      await processFiles(book, bookId)
+    } catch (err) {
+      errorMessage.value = 'Error parsing epub file: ' + err.message
+    }
   }
   reader.onerror = (err) => {
     errorMessage.value = 'Error reading file: ' + err.message
@@ -135,10 +200,32 @@ const parseEpub = (file) => {
         <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
         <p v-if="selectedFile">Selected file: {{ selectedFile.name }}</p>
       </div>
+      <div v-if="storedBooks.length" class="stored-books">
+        <h3>Previous Books:</h3>
+        <ul>
+          <li
+            v-for="book in storedBooks"
+            :key="book.id"
+            @click="loadStoredBook(book)"
+            class="stored-book"
+          >
+            {{ book.name }}
+            <svg
+              @click="deleteBook(book, $event)"
+              class="delete-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+            >
+              <path :d="mdiDelete"></path>
+            </svg>
+          </li>
+        </ul>
+      </div>
     </div>
     <div v-else class="book-content">
       <FileEdit :book-content="bookContent" :files-content="filesContent" :files-meta="filesMeta" />
-<!--      <div class="tabs">
+      <!--      <div class="tabs">
         <button
           v-for="tab in ['metadata', 'files', 'toc']"
           :key="tab"
@@ -149,7 +236,7 @@ const parseEpub = (file) => {
         </button>
       </div>-->
 
-<!--      <div class="tab-content">
+      <!--      <div class="tab-content">
         <div v-if="activeTab === 'metadata'" class="metadata-panel">
           <div v-for="(value, key) in bookContent.metadata" :key="key" class="metadata-item">
             <label>{{ key }}:</label>
@@ -157,25 +244,25 @@ const parseEpub = (file) => {
           </div>
         </div>
 
-        <div v-if="activeTab === 'files'" class="files-panel">
-          <details v-for="[name, file] of filesMeta" :key="file.name" class="file-item">
-            <summary>
-              {{ file.name }}
-            </summary>
-            <div class="file-metadata">
-              <p>Name: {{ file.name }}</p>
-              <p>Type: {{ file.type }}</p>
-              <p>Dir: {{ file.dir }}</p>
-              <p>Date: {{ file.date }}</p>
-              <div class="file-properties">
-                <p>Properties:</p>
-                <ul>
-                  <li v-for="(value, key) in Object.entries(file.options)" v-if="file.options" :key="key">
-                    {{ key }}: {{ value }}
-                  </li>
-                </ul>
-              </div>
+      <div v-if="activeTab === 'files'" class="files-panel">
+        <details v-for="[name, file] of filesMeta" :key="file.name" class="file-item">
+          <summary>
+            {{ file.name }}
+          </summary>
+          <div class="file-metadata">
+            <p>Name: {{ file.name }}</p>
+            <p>Type: {{ file.type }}</p>
+            <p>Dir: {{ file.dir }}</p>
+            <p>Date: {{ file.date }}</p>
+            <div class="file-properties">
+              <p>Properties:</p>
+              <ul>
+                <li v-for="(value, key) in Object.entries(file.options)" v-if="file.options" :key="key">
+                  {{ key }}: {{ value }}
+                </li>
+              </ul>
             </div>
+          </div>
           </details>
         </div>
 
@@ -183,41 +270,41 @@ const parseEpub = (file) => {
           <ul class="toc-list">
             <li v-for="(item, index) in tableOfContents" :key="index">
               <div class="toc-item">
-                <a @click.prevent="handleTocClick(item.href)" href="#" :data-href="item.href">
-                  {{ item.label }}
-                </a>
-                <span class="href-subtitle">{{ item.href }}</span>
-              </div>
-              <ul v-if="item.subitems?.length" class="subitems">
-                <li v-for="(subitem, subIndex) in item.subitems" :key="subIndex">
-                  <div class="toc-item">
-                    <a
-                      @click.prevent="handleTocClick(subitem.href)"
-                      href="#"
-                      :data-href="subitem.href"
-                    >
-                      {{ subitem.label }}
-                    </a>
-                    <span class="href-subtitle">{{ subitem.href }}</span>
-                  </div>
-                </li>
-              </ul>
+              <a @click.prevent="handleTocClick(item.href)" href="#" :data-href="item.href">
+                {{ item.label }}
+              </a>
+              <span class="href-subtitle">{{ item.href }}</span>
+            </div>
+            <ul v-if="item.subitems?.length" class="subitems">
+              <li v-for="(subitem, subIndex) in item.subitems" :key="subIndex">
+                <div class="toc-item">
+                  <a
+                    @click.prevent="handleTocClick(subitem.href)"
+                    href="#"
+                    :data-href="subitem.href"
+                  >
+                    {{ subitem.label }}
+                  </a>
+                  <span class="href-subtitle">{{ subitem.href }}</span>
+                </div>
+              </li>
+            </ul>
             </li>
           </ul>
         </div>
       </div>-->
-<!--      <div class="view-tabs" v-if="selectedContent" style="display:none">
+      <!--      <div class="view-tabs" v-if="selectedContent" style="display:none">
         <button :class="{ active: activeView === 'display' }" @click="activeView = 'display'">
           Display
-        </button>
-        <button :class="{ active: activeView === 'source' }" @click="activeView = 'source'">
-          Source
-        </button>
-      </div>
-      <div class="content-panel" v-if="selectedContent" style="display:none">
-        <pre v-if="activeView === 'source'"><code contenteditable>{{ selectedContent }}</code></pre>
-        <div v-else v-html="selectedContent"></div>
-      </div>-->
+      </button>
+      <button :class="{ active: activeView === 'source' }" @click="activeView = 'source'">
+        Source
+      </button>
+    </div>
+    <div class="content-panel" v-if="selectedContent" style="display:none">
+      <pre v-if="activeView === 'source'"><code contenteditable>{{ selectedContent }}</code></pre>
+      <div v-else v-html="selectedContent"></div>
+    </div>-->
     </div>
   </main>
 </template>
@@ -229,8 +316,8 @@ main {
   overflow: hidden;
 }
 .file-upload {
-  margin: 20px;
-  padding: 20px;
+  margin: 1rem;
+  padding: 1rem;
   border: 2px dashed #ccc;
   border-radius: 4px;
 
@@ -241,6 +328,37 @@ main {
   .error-message {
     color: red;
     margin-top: 5px;
+  }
+}
+
+.stored-books {
+  padding: 1rem;
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+  }
+
+  .stored-book {
+    background-color: var(--vt-c-black-mute);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+
+    &:hover {
+      background-color: var(--vt-c-black-soft);
+      cursor: pointer;
+    }
+
+    .delete-icon {
+      fill: var(--vt-c-white);
+      cursor: pointer;
+
+      &:hover {
+        fill: var(--vt-c-danger);
+      }
+    }
   }
 }
 
