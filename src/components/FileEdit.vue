@@ -1,27 +1,6 @@
 <template>
   <div class="file-edit">
-    <div :class="['sidebar', { collapsed: !sidebarOpen }]">
-      <ul class="file-list">
-        <li
-          v-for="[key, meta] in sortedFiles"
-          :key="key"
-          :class="{ active: selectedFile === key, disabled: !meta.isText }"
-          @click="meta.isText && selectFile(key)"
-        >
-          {{ key }}
-        </li>
-      </ul>
-    </div>
     <div class="main-content">
-      <div class="book-header">
-        <button class="toggle-btn" @click="toggleSidebar">
-          <svg-icon type="mdi" :path="sidebarButton"></svg-icon>
-        </button>
-        <h2>{{ bookContent.title }}</h2>
-        <button class="export-btn" @click="handleExport">
-          <svg-icon type="mdi" :path="mdiExport"></svg-icon><span class="label">Export</span>
-        </button>
-      </div>
       <div v-if="selectedFile" class="file-container">
         <div class="title-row">
           <h3 class="file-title">{{ selectedFile }}</h3>
@@ -34,13 +13,28 @@
         ></textarea>
       </div>
     </div>
+    <div :class="['bottom-sheet', { expanded: sidebarOpen }]">
+      <button class="expand-btn" @click="toggleSidebar">
+        <svg-icon type="mdi" :path="sidebarOpen ? mdiChevronDown : mdiChevronUp"></svg-icon>
+      </button>
+      <ul class="file-list">
+        <li
+          v-for="[key, meta] in sortedFiles"
+          :key="key"
+          :class="{ active: selectedFile === key, disabled: !meta.isText }"
+          @click="meta.isText && selectFile(key)"
+        >
+          {{ key }}
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import SvgIcon from '@jamescoyle/vue-icon'
-import { mdiMenuClose, mdiMenuOpen, mdiExport } from '@mdi/js'
+import { mdiChevronUp, mdiChevronDown } from '@mdi/js'
 
 const props = defineProps({
   filesMeta: {
@@ -57,9 +51,6 @@ const props = defineProps({
   },
 })
 
-const sidebarButton = computed(() => {
-  return sidebarOpen.value ? mdiMenuOpen : mdiMenuClose
-})
 const sidebarOpen = ref(true)
 const selectedFile = ref(null)
 
@@ -95,25 +86,6 @@ const handleSave = () => {
   sidebarOpen.value = true
   emit('save', { file: selectedFile.value, content: fileContent.value })
 }
-
-const handleExport = async () => {
-  const JSZip = (await import('jszip')).default
-  const zip = new JSZip()
-
-  for (const [fileName, content] of props.filesContent.entries()) {
-    zip.file(fileName, content)
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'export.epub'
-  document.body.appendChild(a)
-  a.click()
-  window.URL.revokeObjectURL(url)
-  document.body.removeChild(a)
-}
 </script>
 
 <style scoped>
@@ -121,6 +93,7 @@ const handleExport = async () => {
   --animation-duration: 0.5s;
   display: flex;
   height: 100%;
+  position: relative;
 }
 
 .sidebar {
@@ -146,7 +119,8 @@ const handleExport = async () => {
     padding-inline: 0;
 
     .book-header {
-      .toggle-btn, h2 {
+      .toggle-btn,
+      h2 {
         left: 0;
       }
     }
@@ -213,22 +187,6 @@ const handleExport = async () => {
   transition: padding-inline var(--animation-duration) ease;
 }
 
-.book-header {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 1rem;
-
-  background: var(--color-background-soft);
-  border-right: 1px solid var(--color-border);
-
-  h2 {
-    position: relative;
-    flex: 1;
-    left: -2rem;
-    transition: left var(--animation-duration) ease;
-  }
-}
 .file-container {
   flex-grow: 1;
   display: flex;
@@ -258,11 +216,6 @@ const handleExport = async () => {
   cursor: pointer;
   transition: opacity var(--animation-duration) ease visibility var(--animation-duration) ease;
 }
-@media (max-width: 600px) {
-  .save-button {
-    visibility: hidden;
-  }
-}
 
 .save-button:disabled {
   opacity: 0.5;
@@ -285,16 +238,42 @@ const handleExport = async () => {
   flex-grow: 1;
 }
 
-.export-btn {
-  margin: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background-color: var(--vt-c-green);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  background: var(--color-background-soft);
+  border-top: 1px solid var(--color-border);
+  transition: height var(--animation-duration) ease;
+  /*overflow: hidden;*/
+  height: 2rem;
+
+  .file-list {
+    opacity: 0.5;
+    transition: opacity var(--animation-duration) ease;
+  }
+  &.expanded {
+    height: 50vh;
+    .file-list {
+      opacity: 1;
+    }
+  }
+
+  .expand-btn {
+    --animation-duration: 1s;
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem;
+    background: var(--color-background-mute);
+    border: solid 1px var(--color-border);
+    border-radius: 50%;
+    color: var(--vt-c-text-dark-2);
+    cursor: pointer;
+    transition: top var(--animation-duration) ease;
+  }
 }
 </style>

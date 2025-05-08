@@ -3,11 +3,11 @@ import FileEdit from '@/components/FileEdit.vue'
 import {
   ref,
   onMounted,
-  // nextTick,
 } from 'vue'
-import { mdiDelete } from '@mdi/js'
+import { mdiArrowLeft, mdiDelete, mdiExport } from '@mdi/js'
 import { Book } from 'epubjs'
 import { db } from '@/db'
+import SvgIcon from '@jamescoyle/vue-icon'
 
 const showUpload = ref(true)
 const tableOfContents = ref([])
@@ -16,10 +16,7 @@ const filesMeta = ref(new Map())
 const filesContent = ref(new Map())
 const selectedFile = ref(null)
 const errorMessage = ref('')
-const activeTab = ref('metadata')
-const activeView = ref('display')
 const storedBooks = ref([])
-// const selectedContent = ref(null)
 
 onMounted(async () => {
   try {
@@ -37,24 +34,6 @@ const handleFileUpload = (event) => {
     selectedFile.value = file
     errorMessage.value = ''
     parseEpub(file)
-
-    /*if (navigator?.serviceWorker?.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'PROCESS_EPUB',
-        fileName: file.name,
-        file: file,
-      });
-
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        console.log(event);
-        if (event.data.type === 'EPUB_PROCESSING_STATUS') {
-          console.log(event.data);
-          console.log(`EPUB processing ${event.data.status} for ${event.data.fileName}`);
-        }
-      })
-    } else {
-      console.warn('Service worker not found');
-    }*/
   } else {
     selectedFile.value = null
     errorMessage.value = 'Please select a valid .epub file'
@@ -167,29 +146,33 @@ const parseEpub = (file) => {
   reader.readAsArrayBuffer(file)
 }
 
-/*const handleTocClick = async (href) => {
-  try {
-    const section = await bookContent.value.book.spine.get(href)
-    let hrefParts = href.split('#')
-    let archiveContent = await bookContent.value.book.archive.getText(`/${hrefParts[0]}`)
-    selectedContent.value = archiveContent
+const handleExport = async () => {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
 
-    if (hrefParts.length > 1) {
-      nextTick(() => {
-        const element = document.getElementById(hrefParts[1])
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          element.parentElement.classList.add('highlight')
-          setTimeout(() => {
-            element.parentElement.classList.remove('highlight')
-          }, 3000)
-        }
-      })
-    }
-  } catch (err) {
-    errorMessage.value = 'Error loading content: ' + err.message
+  for (const [fileName, content] of filesContent.value.entries()) {
+    zip.file(fileName, content)
   }
-}*/
+
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'export.epub'
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+}
+
+const handleBack = () => {
+  showUpload.value = true
+  bookContent.value = null
+  filesMeta.value = new Map()
+  filesContent.value = new Map()
+  selectedFile.value = null
+  errorMessage.value = ''
+}
 </script>
 
 <template>
@@ -224,87 +207,16 @@ const parseEpub = (file) => {
       </div>
     </div>
     <div v-else class="book-content">
-      <FileEdit :book-content="bookContent" :files-content="filesContent" :files-meta="filesMeta" />
-      <!--      <div class="tabs">
-        <button
-          v-for="tab in ['metadata', 'files', 'toc']"
-          :key="tab"
-          :class="{ active: activeTab === tab }"
-          @click="activeTab = tab"
-        >
-          {{ tab === 'toc' ? 'ToC' : tab.charAt(0).toUpperCase() + tab.slice(1) }}
+      <div class="book-header">
+        <button class="back-btn" @click="handleBack">
+          <svg-icon type="mdi" :path="mdiArrowLeft"></svg-icon>
         </button>
-      </div>-->
-
-      <!--      <div class="tab-content">
-        <div v-if="activeTab === 'metadata'" class="metadata-panel">
-          <div v-for="(value, key) in bookContent.metadata" :key="key" class="metadata-item">
-            <label>{{ key }}:</label>
-            <input type="text" :value="value" readonly />
-          </div>
-        </div>
-
-      <div v-if="activeTab === 'files'" class="files-panel">
-        <details v-for="[name, file] of filesMeta" :key="file.name" class="file-item">
-          <summary>
-            {{ file.name }}
-          </summary>
-          <div class="file-metadata">
-            <p>Name: {{ file.name }}</p>
-            <p>Type: {{ file.type }}</p>
-            <p>Dir: {{ file.dir }}</p>
-            <p>Date: {{ file.date }}</p>
-            <div class="file-properties">
-              <p>Properties:</p>
-              <ul>
-                <li v-for="(value, key) in Object.entries(file.options)" v-if="file.options" :key="key">
-                  {{ key }}: {{ value }}
-                </li>
-              </ul>
-            </div>
-          </div>
-          </details>
-        </div>
-
-        <div v-if="activeTab === 'toc'" class="toc-panel" style="display:none">
-          <ul class="toc-list">
-            <li v-for="(item, index) in tableOfContents" :key="index">
-              <div class="toc-item">
-              <a @click.prevent="handleTocClick(item.href)" href="#" :data-href="item.href">
-                {{ item.label }}
-              </a>
-              <span class="href-subtitle">{{ item.href }}</span>
-            </div>
-            <ul v-if="item.subitems?.length" class="subitems">
-              <li v-for="(subitem, subIndex) in item.subitems" :key="subIndex">
-                <div class="toc-item">
-                  <a
-                    @click.prevent="handleTocClick(subitem.href)"
-                    href="#"
-                    :data-href="subitem.href"
-                  >
-                    {{ subitem.label }}
-                  </a>
-                  <span class="href-subtitle">{{ subitem.href }}</span>
-                </div>
-              </li>
-            </ul>
-            </li>
-          </ul>
-        </div>
-      </div>-->
-      <!--      <div class="view-tabs" v-if="selectedContent" style="display:none">
-        <button :class="{ active: activeView === 'display' }" @click="activeView = 'display'">
-          Display
-      </button>
-      <button :class="{ active: activeView === 'source' }" @click="activeView = 'source'">
-        Source
-      </button>
-    </div>
-    <div class="content-panel" v-if="selectedContent" style="display:none">
-      <pre v-if="activeView === 'source'"><code contenteditable>{{ selectedContent }}</code></pre>
-      <div v-else v-html="selectedContent"></div>
-    </div>-->
+        <h2>{{ bookContent.title }}</h2>
+        <button class="export-btn" @click="handleExport">
+          <svg-icon type="mdi" :path="mdiExport"></svg-icon><span class="label">Export</span>
+        </button>
+      </div>
+      <FileEdit :book-content="bookContent" :files-content="filesContent" :files-meta="filesMeta" />
     </div>
   </main>
 </template>
@@ -367,134 +279,49 @@ main {
   width: 100%;
   overflow: hidden;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 
-  .tabs {
-    margin-bottom: 20px;
-
-    button {
-      padding: 8px 16px;
-      margin-right: 8px;
-      border: 1px solid #ccc;
-      background: white;
-      cursor: pointer;
-
-      &.active {
-        background: var(--vt-c-green);
-        color: white;
-        border-color: var(--vt-c-green);
-      }
-    }
-  }
-
-  .tab-content {
-    border: 1px solid #ccc;
-    padding: 20px;
-    height: calc(100% - 80px);
-    overflow-y: auto;
-  }
-
-  .metadata-item {
-    margin-bottom: 10px;
+  .book-header {
     display: flex;
+    justify-content: flex-start;
     align-items: center;
-    gap: 10px;
+    gap: 1rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
 
-    label {
-      min-width: 100px;
-      font-weight: bold;
+    background: var(--color-background-soft);
+    border-right: 1px solid var(--color-border);
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      background-color: transparent;
+      border: none;
+      color: white;
     }
-
-    input {
+    h2 {
+      position: relative;
       flex: 1;
-      padding: 5px;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-    }
-  }
-
-  .file-item {
-    margin-bottom: 10px;
-
-    summary {
-      cursor: pointer;
-      padding: 10px;
-      background: var(--vt-c-indigo);
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: calc(100% - 100px);
     }
 
-    .file-metadata {
-      padding: 10px;
-      margin-left: 20px;
-    }
-  }
-
-  .toc-item {
-    display: flex;
-    flex-direction: column;
-    margin: 5px 0;
-
-    .href-subtitle {
-      font-size: 0.8em;
-      color: #666;
-      margin-left: 10px;
-    }
-  }
-
-  .toc-panel {
-    flex: 0 0 300px;
-    grid-area: 1 / 1 / 3 / 2;
-    overflow-y: auto;
-  }
-
-  .toc-list {
-    list-style-type: none;
-    padding-left: 0;
-
-    li {
-      margin: 10px 0;
-    }
-
-    a {
-      text-decoration: none;
-      color: #5b7fa4;
-    }
-
-    .subitems {
-      list-style-type: none;
-      padding-left: 20px;
-    }
-  }
-
-  .view-tabs {
-    margin-bottom: 10px;
-    grid-area: 1 / 2 / 2 / 3;
-
-    button {
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 8px 16px;
-      margin-right: 8px;
-      border: 1px solid #ccc;
-      background: white;
+      background-color: var(--vt-c-green);
+      color: white;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
-      transition: all 0.3s ease;
-
-      &.active {
-        background: #2c3e50;
-        color: white;
-        border: 1px solid #2c3e50;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-    }
-  }
-
-  .content-panel {
-    grid-area: 2 / 2 / 3 / 3;
-    flex: 1;
-    padding: 20px;
-    border-left: 1px solid #ccc;
-    max-height: 80vh;
-    overflow-y: auto;
-
-    pre {
-      padding: 10px;
     }
   }
 }
