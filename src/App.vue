@@ -5,7 +5,7 @@ import Icon from './components/EpubIcon.vue'
 </script>
 
 <template>
-  <header>
+  <header v-if="!this.$route.meta.hideHeader">
     <icon name="logo" class="logo" />
     <div class="wrapper">
       <HelloWorld msg="ePub Press" />

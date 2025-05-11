@@ -1,19 +1,12 @@
 <script setup>
-import FileEdit from '@/components/FileEdit.vue'
-import {
-  ref,
-  onMounted,
-} from 'vue'
-import { mdiArrowLeft, mdiDelete, mdiExport } from '@mdi/js'
+import { ref, onMounted } from 'vue'
+import { mdiDelete } from '@mdi/js'
 import { Book } from 'epubjs'
 import { db } from '@/db'
-import SvgIcon from '@jamescoyle/vue-icon'
+import { useRouter } from 'vue-router'
 
-const showUpload = ref(true)
+const router = useRouter()
 const tableOfContents = ref([])
-const bookContent = ref(null)
-const filesMeta = ref(new Map())
-const filesContent = ref(new Map())
 const selectedFile = ref(null)
 const errorMessage = ref('')
 const storedBooks = ref([])
@@ -53,7 +46,6 @@ const processFiles = async (book, bookId) => {
         options: file.options,
         isText: /^(html|xhtml|xml|txt|css|ncx|opf)$/i.test(type),
       }
-      filesMeta.value.set(zipFileName, metadata)
 
       let contentType = 'text'
       switch (type) {
@@ -62,7 +54,6 @@ const processFiles = async (book, bookId) => {
           break
       }
       const fileContent = await book.archive.zip.files[zipFileName].async(contentType)
-      filesContent.value.set(zipFileName, fileContent)
 
       await db.addFile({
         bookId: bookId,
@@ -76,28 +67,8 @@ const processFiles = async (book, bookId) => {
   }
 }
 
-const loadStoredBook = async (book) => {
-  try {
-    const files = await db.getBookFiles(book.id)
-    bookContent.value = {
-      title: book.meta.title,
-      creator: book.meta.creator,
-      language: book.meta.language,
-      metadata: book.meta,
-    }
-
-    filesMeta.value = new Map()
-    filesContent.value = new Map()
-
-    files.forEach((file) => {
-      filesMeta.value.set(file.name, file.meta)
-      filesContent.value.set(file.name, file.content)
-    })
-
-    showUpload.value = false
-  } catch (error) {
-    errorMessage.value = 'Error loading stored book: ' + error.message
-  }
+const navigateToEdit = (bookId) => {
+  router.push(`/edit/${bookId}`)
 }
 
 const deleteBook = async (book, event) => {
@@ -117,14 +88,6 @@ const parseEpub = (file) => {
 
     try {
       const metadata = await book.loaded.metadata
-      bookContent.value = {
-        title: metadata.title,
-        creator: metadata.creator,
-        language: metadata.language,
-        spine: book.spine,
-        book: book,
-        metadata: metadata,
-      }
 
       const bookId = await db.addBook({
         name: selectedFile.value.name,
@@ -133,9 +96,11 @@ const parseEpub = (file) => {
 
       const navigation = await book.loaded.navigation
       tableOfContents.value = navigation.toc
-      showUpload.value = false
 
       await processFiles(book, bookId)
+
+      // Navigate to edit view after processing
+      navigateToEdit(bookId)
     } catch (err) {
       errorMessage.value = 'Error parsing epub file: ' + err.message
     }
@@ -145,78 +110,36 @@ const parseEpub = (file) => {
   }
   reader.readAsArrayBuffer(file)
 }
-
-const handleExport = async () => {
-  const JSZip = (await import('jszip')).default
-  const zip = new JSZip()
-
-  for (const [fileName, content] of filesContent.value.entries()) {
-    zip.file(fileName, content)
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'export.epub'
-  document.body.appendChild(a)
-  a.click()
-  window.URL.revokeObjectURL(url)
-  document.body.removeChild(a)
-}
-
-const handleBack = () => {
-  showUpload.value = true
-  bookContent.value = null
-  filesMeta.value = new Map()
-  filesContent.value = new Map()
-  selectedFile.value = null
-  errorMessage.value = ''
-}
 </script>
 
 <template>
   <main>
-    <div v-if="showUpload">
-      <div class="file-upload">
-        <input type="file" accept=".epub" @change="handleFileUpload" class="file-input" />
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-        <p v-if="selectedFile">Selected file: {{ selectedFile.name }}</p>
-      </div>
-      <div v-if="storedBooks.length" class="stored-books">
-        <h3>Previous Books:</h3>
-        <ul>
-          <li
-            v-for="book in storedBooks"
-            :key="book.id"
-            @click="loadStoredBook(book)"
-            class="stored-book"
-          >
-            {{ book.name }}
-            <svg
-              @click="deleteBook(book, $event)"
-              class="delete-icon"
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-            >
-              <path :d="mdiDelete"></path>
-            </svg>
-          </li>
-        </ul>
-      </div>
+    <div class="file-upload">
+      <input type="file" accept=".epub" @change="handleFileUpload" class="file-input" />
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <p v-if="selectedFile">Selected file: {{ selectedFile.name }}</p>
     </div>
-    <div v-else class="book-content">
-      <div class="book-header">
-        <button class="back-btn" @click="handleBack">
-          <svg-icon type="mdi" :path="mdiArrowLeft"></svg-icon>
-        </button>
-        <h2>{{ bookContent.title }}</h2>
-        <button class="export-btn" @click="handleExport">
-          <svg-icon type="mdi" :path="mdiExport"></svg-icon><span class="label">Export</span>
-        </button>
-      </div>
-      <FileEdit :book-content="bookContent" :files-content="filesContent" :files-meta="filesMeta" />
+    <div v-if="storedBooks.length" class="stored-books">
+      <h3>Previous Books:</h3>
+      <ul>
+        <li
+          v-for="book in storedBooks"
+          :key="book.id"
+          @click="navigateToEdit(book.id)"
+          class="stored-book"
+        >
+          {{ book.name }}
+          <svg
+            @click="deleteBook(book, $event)"
+            class="delete-icon"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+          >
+            <path :d="mdiDelete"></path>
+          </svg>
+        </li>
+      </ul>
     </div>
   </main>
 </template>
@@ -272,73 +195,5 @@ main {
       }
     }
   }
-}
-
-.book-content {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-
-  .book-header {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-
-    background: var(--color-background-soft);
-    border-right: 1px solid var(--color-border);
-
-    .back-btn {
-      display: flex;
-      align-items: center;
-      background-color: transparent;
-      border: none;
-      color: white;
-    }
-    h2 {
-      position: relative;
-      flex: 1;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: calc(100% - 100px);
-    }
-
-    .export-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background-color: var(--vt-c-green);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-  }
-}
-
-@keyframes flash {
-  0%,
-  100% {
-    background-color: rgba(113, 113, 0, 0);
-  }
-  50% {
-    background-color: rgba(113, 113, 0, 1);
-  }
-}
-
-.highlight {
-  animation: flash 1s 3;
-  background-color: rgba(113, 113, 0, 0);
-  transition: background-color 3s ease;
 }
 </style>

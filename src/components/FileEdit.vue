@@ -159,6 +159,7 @@ const handleSave = () => {
   list-style-type: none;
   padding: 0;
   margin: 0;
+  height: 100%;
   overflow: auto;
   scrollbar-width: thin;
 
