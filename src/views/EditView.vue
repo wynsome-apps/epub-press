@@ -158,7 +158,7 @@ main {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: calc(100% - 100px);
+    max-width: calc(100vw - 210px);
   }
 
   .export-btn {
