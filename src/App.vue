@@ -1,11 +1,13 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
 import Icon from './components/EpubIcon.vue'
+
+const route = useRoute()
 </script>
 
 <template>
-  <header v-if="!this.$route.meta.hideHeader">
+  <header v-if="!route?.meta?.hideHeader">
     <icon name="logo" class="logo" />
     <div class="wrapper">
       <HelloWorld msg="ePub Press" />
@@ -76,7 +78,6 @@ nav a:first-of-type {
 }
 
 @media (min-width: 1024px) {
-
   nav {
     font-size: 1rem;
 
